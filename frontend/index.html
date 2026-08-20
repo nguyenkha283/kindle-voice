@@ -16,9 +16,9 @@
   /* glass */
   --glass-bg:rgba(38,28,20,.42);
   --glass-strong:rgba(30,22,15,.6);
-  --glass-brd:rgba(244,220,170,.16);
+  --glass-brd:rgba(88,73,57,.16);
   --glass-hi:inset 0 1px 0 rgba(255,255,255,.10);
-  --blur:blur(22px) saturate(1.35);
+  --blur:blur(6px) saturate(1.35);
   --radius:16px;
   --shadow:0 18px 55px -22px rgba(0,0,0,.75);
   --display:"Fraunces",Georgia,serif; --read:"Lora",Georgia,serif; --ui:"Inter",system-ui,sans-serif;
@@ -35,7 +35,7 @@ select,input{font-family:inherit}
 .glass{background:var(--glass-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:1px solid var(--glass-brd);box-shadow:var(--shadow),var(--glass-hi)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .glass{background:rgba(28,20,14,.9)}
+  .glass{background:rgba(47,47,47,.2)}
 }
 
 /* ambient background */
