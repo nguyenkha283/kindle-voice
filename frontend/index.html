@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="robots" content="noindex,nofollow" />
+<title>Thư phòng · Đọc sách bằng giọng nói</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Lora:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#17110c; --ink-2:#211812; --ink-3:#2c2119;
+  --paper:#ece0c8; --paper-dim:#b3a488; --paper-faint:#7b6e58;
+  --lamp:#eab45c; --lamp-soft:#f4d29a; --brass:#b98a3e; --rose:#cf9384;
+  /* glass */
+  --glass-bg:rgba(38,28,20,.42);
+  --glass-strong:rgba(30,22,15,.6);
+  --glass-brd:rgba(244,220,170,.16);
+  --glass-hi:inset 0 1px 0 rgba(255,255,255,.10);
+  --blur:blur(22px) saturate(1.35);
+  --radius:16px;
+  --shadow:0 18px 55px -22px rgba(0,0,0,.75);
+  --display:"Fraunces",Georgia,serif; --read:"Lora",Georgia,serif; --ui:"Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--ink);color:var(--paper);font-family:var(--ui);overflow:hidden;
+  -webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+select,input{font-family:inherit}
+:focus-visible{outline:2px solid var(--lamp);outline-offset:2px;border-radius:8px}
+
+/* glass utility */
+.glass{background:var(--glass-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-brd);box-shadow:var(--shadow),var(--glass-hi)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{background:rgba(28,20,14,.9)}
+}
+
+/* ambient background */
+.scene-bg{position:fixed;inset:0;z-index:0;
+  background:#c8b48f url("https://qgyrvstpkyjqgqrcbgzy.supabase.co/storage/v1/object/public/project-images/Gemini_Generated_Image_i5l0msi5l0msi5l0%20(1).png") center/cover no-repeat}
+.scene-bg::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(18,13,7,.34),rgba(18,13,7,.08) 28%,rgba(18,13,7,.12) 66%,rgba(18,13,7,.44))}
+
+.view{position:fixed;inset:0;z-index:5;display:none}
+.view.active{display:block}
+
+/* ---------- greeting ---------- */
+#greeting{flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px;z-index:8}
+#greeting.active{display:flex}
+.librarian{width:min(46vw,210px);margin-bottom:6px}
+.librarian path,.librarian circle,.librarian line{stroke:var(--lamp-soft);stroke-width:1.6;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.librarian .draw{stroke-dasharray:1;stroke-dashoffset:1;pathLength:1;animation:draw 2.1s ease forwards}
+.librarian .fill-rose{fill:var(--rose);stroke:none;opacity:0;animation:soft-in .8s ease 1.6s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.greet-line{font-family:var(--display);font-weight:400;font-size:clamp(1.6rem,4.4vw,2.9rem);
+  line-height:1.25;max-width:18ch;margin:.3em 0 0}
+.greet-line .accent{font-style:italic;color:var(--lamp-soft)}
+.caret{display:inline-block;width:.06em;height:1em;background:var(--lamp);margin-left:.05em;
+  vertical-align:-.08em;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.greet-sub{color:var(--paper-dim);font-size:.95rem;margin-top:1.1em;opacity:0;
+  animation:soft-in .9s ease 2.4s forwards}
+@keyframes soft-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.enter-btn{margin-top:2em;font-weight:500;letter-spacing:.06em;font-size:.82rem;text-transform:uppercase;
+  color:var(--ink);background:var(--lamp);padding:.9em 1.9em;border-radius:999px;opacity:0;
+  animation:soft-in .8s ease 2.8s forwards;box-shadow:0 10px 30px -10px rgba(234,180,92,.6);
+  transition:transform .2s,box-shadow .2s;display:inline-flex;align-items:center;gap:9px}
+.enter-btn:hover{transform:translateY(-2px);box-shadow:0 16px 38px -10px rgba(234,180,92,.78)}
+.enter-btn svg{width:16px;height:16px;fill:currentColor}
+
+/* ---------- library (coverflow) ---------- */
+#library{flex-direction:column}
+#library.active{display:flex}
+.lib-top{position:absolute;top:0;left:0;right:0;padding:clamp(20px,4vh,40px) 26px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;z-index:6}
+.lib-top .eyebrow{font-size:.7rem;letter-spacing:.28em;text-transform:uppercase;color:var(--brass)}
+.lib-top h1{font-family:var(--display);font-weight:600;font-size:clamp(1.5rem,3.4vw,2.3rem);margin:.35em 0 0}
+.add-book{padding:10px 16px;border-radius:999px;color:var(--paper);font-size:.82rem;display:flex;
+  align-items:center;gap:8px}
+.add-book:hover{color:var(--lamp)}
+.add-book svg{width:15px;height:15px;fill:currentColor}
+
+.stage{flex:1;position:relative;height:100%;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none}
+.stage.grabbing{cursor:grabbing}
+.slide{position:absolute;left:50%;top:50%;width:min(60vw,230px);will-change:transform,opacity;
+  transform-style:preserve-3d}
+.slide .cover-wrap{position:relative;aspect-ratio:2/3;border-radius:6px 12px 12px 6px;overflow:hidden;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.85)}
+.slide .cover-wrap img,.slide .gen-cover{width:100%;height:100%;object-fit:cover;display:block}
+.gen-cover{display:flex;flex-direction:column;justify-content:space-between;padding:18px 16px;color:#f3ead6}
+.gen-cover .gt{font-family:var(--display);font-weight:600;font-size:1.15rem;line-height:1.14}
+.gen-cover .ga{font-size:.74rem;letter-spacing:.08em;opacity:.75;text-transform:uppercase}
+.slide .spine{position:absolute;left:0;top:0;bottom:0;width:8px;
+  background:linear-gradient(90deg,rgba(0,0,0,.5),transparent)}
+.badge{position:absolute;top:10px;right:10px;padding:5px 9px;border-radius:999px;font-size:.7rem;
+  font-weight:600;letter-spacing:.02em;color:var(--lamp-soft);z-index:2}
+.badge.new{color:var(--paper-dim)}
+.slide .cap{position:absolute;left:0;right:0;bottom:-58px;text-align:center;opacity:0;transition:opacity .3s}
+.slide.center .cap{opacity:1}
+.slide .cap .t{font-family:var(--read);font-size:1rem;color:var(--paper)}
+.slide .cap .a{font-size:.8rem;color:var(--paper-dim);font-style:italic}
+.stage-hint{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);color:var(--paper-faint);
+  font-size:.78rem;letter-spacing:.05em;z-index:6}
+
+/* ---------- reader (minimal) ---------- */
+#reader{z-index:5}
+.back-fab{position:fixed;top:max(18px,env(safe-area-inset-top));left:18px;z-index:12;width:46px;height:46px;
+  border-radius:50%;display:grid;place-items:center;color:var(--paper)}
+.back-fab:hover{color:var(--lamp)}
+.back-fab svg{width:20px;height:20px;fill:currentColor}
+.read-fab{position:fixed;top:max(18px,env(safe-area-inset-top));right:18px;z-index:12;
+  padding:11px 16px;border-radius:999px;color:var(--paper);font-size:.82rem;display:flex;
+  align-items:center;gap:8px}
+.read-fab:hover{color:var(--lamp)}
+.read-fab svg{width:16px;height:16px;fill:currentColor}
+
+/* open-book reader */
+.book-view{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;
+  padding:80px 20px 30px}
+.book-view.open{display:flex}
+.book{position:relative;display:flex;width:min(94vw,900px);height:min(76vh,640px);
+  perspective:2400px;filter:drop-shadow(0 40px 70px rgba(0,0,0,.6))}
+.page{flex:1 1 50%;min-width:0;background:
+  linear-gradient(#efe6d1,#e7dcc2);color:#2b2119;position:relative;overflow:hidden;
+  padding:clamp(24px,3.4vw,44px) clamp(22px,3vw,40px)}
+.page .pcontent{font-family:var(--read);font-size:clamp(.98rem,1.5vw,1.08rem);line-height:1.85}
+.page .pcontent h3{font-family:var(--display);font-weight:600;font-size:1.25em;margin:.1em 0 .7em}
+.page .pcontent p{margin:0 0 1em;text-align:justify;hyphens:auto}
+.page .pcontent .ln{cursor:pointer;border-radius:3px;transition:background .14s}
+.page .pcontent .ln:hover{background:rgba(207,147,132,.22)}
+.page .pcontent .ln.marked{background:rgba(207,147,132,.42);box-shadow:inset 0 -2px 0 var(--rose)}
+.page .pnum{position:absolute;bottom:14px;font-size:.72rem;color:#9c8e6f;letter-spacing:.05em}
+.page.left{border-radius:7px 0 0 7px;box-shadow:inset -26px 0 34px -26px rgba(60,40,20,.55)}
+.page.left .pnum{left:clamp(22px,3vw,40px)}
+.page.right{border-radius:0 7px 7px 0;box-shadow:inset 26px 0 34px -26px rgba(60,40,20,.55)}
+.page.right .pnum{right:clamp(22px,3vw,40px)}
+.book .spine{position:absolute;left:50%;top:0;bottom:0;width:2px;transform:translateX(-1px);z-index:6;
+  background:linear-gradient(90deg,rgba(60,40,20,.35),rgba(60,40,20,.05),rgba(60,40,20,.35));pointer-events:none}
+/* trang lật */
+.flipper{position:absolute;top:0;bottom:0;width:50%;z-index:8;will-change:transform;
+  transform-style:preserve-3d;-webkit-transform-style:preserve-3d;
+  transition:transform .72s cubic-bezier(.3,.1,.2,1)}
+.flipper.right{left:50%;transform-origin:left center;transform:rotateY(0deg)}
+.flipper.left{left:0;transform-origin:right center;transform:rotateY(0deg)}
+.flipper .face{position:absolute;inset:0;overflow:hidden;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:linear-gradient(#efe6d1,#e7dcc2)}
+.flipper .face .pcontent{font-family:var(--read);font-size:clamp(.98rem,1.5vw,1.08rem);line-height:1.85;
+  color:#2b2119;padding:clamp(24px,3.4vw,44px) clamp(22px,3vw,40px)}
+.flipper .front{transform:rotateY(0)}
+.flipper .back{transform:rotateY(180deg)}
+.flipper .shade{position:absolute;inset:0;background:rgba(40,26,12,0);transition:background .72s}
+.book.turning-next .flipper.right{transform:rotateY(-180deg)}
+.book.turning-prev .flipper.left{transform:rotateY(180deg)}
+/* điều hướng chạm 2 mép + nút đóng */
+.page-nav{position:absolute;top:0;bottom:0;width:22%;z-index:7;cursor:pointer}
+.page-nav.prev{left:0}.page-nav.next{right:0}
+.book-close{position:absolute;top:-52px;right:0;color:var(--paper-dim);font-size:.82rem;display:flex;
+  align-items:center;gap:7px}
+.book-close:hover{color:var(--lamp)}
+.book-mark{position:absolute;top:-52px;left:0;color:var(--paper-dim);font-size:.82rem}
+.book-mark:hover{color:var(--rose)}
+.ribbon{position:absolute;top:-6px;right:34px;width:22px;height:40px;z-index:9;background:var(--rose);
+  box-shadow:0 6px 14px -6px rgba(0,0,0,.6);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
+.book-hint{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);color:var(--paper-faint);
+  font-size:.74rem;white-space:nowrap}
+@media (max-width:680px){
+  .book .page.right,.book .spine{display:none}
+  .book .page.left{border-radius:8px;box-shadow:none}
+  .book{width:min(94vw,460px)}
+  .flipper{width:100%}.flipper.right{left:0}
+}
+
+/* ---------- desk / toolbar (glass) ---------- */
+.desk{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:max(16px,env(safe-area-inset-bottom));z-index:14;width:min(94vw,720px);
+  border-radius:22px;padding:12px 16px;display:flex;align-items:center;gap:clamp(8px,1.8vw,16px)}
+.transport{display:flex;align-items:center;gap:6px}
+.tbtn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--paper);transition:.16s}
+.tbtn:hover{background:rgba(255,255,255,.08);color:var(--lamp)}
+.tbtn svg{width:19px;height:19px;fill:currentColor}
+.play-btn{width:52px;height:52px;background:var(--lamp);color:var(--ink);
+  box-shadow:0 8px 24px -8px rgba(234,180,92,.7)}
+.play-btn:hover{background:var(--lamp-soft);transform:scale(1.05)}
+.play-btn svg{width:22px;height:22px}
+.desk .mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.mid .bar{height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.mid .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brass),var(--lamp));
+  transition:width .3s}
+.mid .sub{display:flex;justify-content:space-between;font-size:.72rem;color:var(--paper-dim)}
+.cluster{display:flex;align-items:center;gap:6px}
+.icon-btn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;color:var(--paper-dim);
+  transition:.16s;position:relative}
+.icon-btn:hover{color:var(--lamp);background:rgba(255,255,255,.06)}
+.icon-btn.on{color:var(--lamp)}
+.icon-btn svg{width:19px;height:19px;fill:currentColor}
+.icon-btn .dot{position:absolute;top:7px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--lamp)}
+
+/* popover */
+.pop{position:fixed;z-index:20;width:min(90vw,300px);border-radius:16px;padding:16px;display:none;
+  flex-direction:column;gap:14px}
+.pop.open{display:flex}
+.pop label{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);
+  display:block;margin-bottom:7px}
+.pop select{width:100%;padding:9px 10px;border-radius:9px;background:rgba(0,0,0,.25);color:var(--paper);
+  border:1px solid var(--glass-brd);font-size:.9rem}
+.row{display:flex;gap:8px;align-items:center}
+.ghost{padding:8px 12px;border:1px solid var(--glass-brd);border-radius:9px;font-size:.82rem;
+  color:var(--paper-dim);white-space:nowrap;transition:.15s}
+.ghost:hover{border-color:var(--brass);color:var(--lamp)}
+.check{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--paper-dim)}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;
+  background:rgba(255,255,255,.16);cursor:pointer}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--lamp);box-shadow:0 0 0 4px rgba(234,180,92,.18)}
+.slider::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--lamp)}
+.chap-list{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:1px;margin:-4px}
+.chap-item{text-align:left;padding:9px 12px;border-radius:9px;color:var(--paper-dim);font-size:.9rem;
+  display:flex;gap:10px;transition:.14s}
+.chap-item .n{font-family:var(--display);font-size:.78rem;color:var(--paper-faint);width:1.7em;flex:none}
+.chap-item:hover{background:rgba(255,255,255,.06);color:var(--paper)}
+.chap-item.current{background:rgba(234,180,92,.12);color:var(--lamp-soft)}
+
+#toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:50;border-radius:11px;
+  padding:11px 18px;font-size:.88rem;max-width:88vw}
+#toast[hidden]{display:none}
+#toast.err{border-color:var(--rose);color:#f2c9bd}
+
+@media (max-width:640px){
+  .desk{gap:6px;padding:10px 12px}
+  .desk .mid .sub{display:none}
+  .cluster{gap:2px}
+  .icon-btn{width:36px;height:36px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;transition-duration:.08s!important}
+  .librarian .draw{stroke-dashoffset:0}
+}
+</style>
+</head>
+<body>
+<div class="scene-bg" aria-hidden="true"></div>
+
+<!-- GREETING -->
+<section class="view active" id="greeting">
+  <h1 class="greet-line"><span id="greetType"></span><span class="caret" id="caret"></span></h1>
+  <p class="greet-sub">Thư phòng riêng của bạn — chọn một cuốn, tôi đọc cho nghe.</p>
+  <button class="enter-btn" id="enterBtn">
+    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Vào thư phòng
+  </button>
+</section>
+
+<!-- LIBRARY -->
+<main class="view" id="library">
+  <div class="lib-top">
+    <div><div class="eyebrow">Kệ sách</div><h1 id="libTitle">Hôm nay đọc gì?</h1></div>
+    <button class="add-book glass" id="addBook">
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg> Thêm .epub
+    </button>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="stage-hint">Kéo / vuốt để chọn · chạm vào bìa để mở</div>
+</main>
+
+<!-- READER (minimal) -->
+<section class="view" id="reader">
+  <button class="back-fab glass" id="backBtn" aria-label="Về kệ sách">
+    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6v12z"/></svg>
+  </button>
+
+  <button class="read-fab glass" id="readFab">
+    <svg viewBox="0 0 24 24"><path d="M4 5h7v14H4zm9 0h7v14h-7z"/></svg>
+    <span id="readFabLabel">Để tôi đọc</span>
+  </button>
+
+  <div class="book-view" id="bookView">
+    <div class="book" id="book">
+      <div class="page left"><div class="pcontent" id="pageL"></div><span class="pnum" id="numL"></span></div>
+      <div class="page right"><div class="pcontent" id="pageR"></div><span class="pnum" id="numR"></span></div>
+      <div class="spine"></div>
+      <div class="flipper right" id="flipR" hidden>
+        <div class="face front"><div class="pcontent"></div></div>
+        <div class="face back"><div class="pcontent"></div></div>
+      </div>
+      <div class="flipper left" id="flipL" hidden>
+        <div class="face front"><div class="pcontent"></div></div>
+        <div class="face back"><div class="pcontent"></div></div>
+      </div>
+      <div class="page-nav prev" id="navPrev" aria-label="Trang trước"></div>
+      <div class="page-nav next" id="navNext" aria-label="Trang sau"></div>
+      <div class="book-hint">Chạm một dòng để đánh dấu · mép trái/phải hoặc ← → để lật</div>
+    </div>
+  </div>
+
+  <div class="desk glass">
+    <div class="transport">
+      <button class="tbtn" id="prevBtn" aria-label="Câu trước"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+      <button class="tbtn play-btn" id="playBtn" aria-label="Phát"><svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="tbtn" id="nextBtn" aria-label="Câu sau"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+    </div>
+    <div class="mid">
+      <div class="bar"><i id="progFill"></i></div>
+      <div class="sub"><span id="chapNow">—</span><span id="pctNow">0%</span></div>
+    </div>
+    <div class="cluster">
+      <button class="icon-btn" id="chapBtn" aria-label="Mục lục" title="Mục lục">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/></svg></button>
+      <button class="icon-btn" id="musicBtn" aria-label="Nhạc nền" title="Nhạc nền">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1014 17V7h4V3z"/></svg></button>
+      <button class="icon-btn" id="voiceBtn" aria-label="Giọng đọc" title="Giọng đọc">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-3.1A7 7 0 0019 11z"/></svg></button>
+      <button class="icon-btn" id="volBtn" aria-label="Âm lượng" title="Âm lượng giọng">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z"/></svg></button>
+    </div>
+  </div>
+
+  <!-- popovers -->
+  <div class="pop glass" id="chapPop"><label>Mục lục</label><div class="chap-list" id="chapList"></div></div>
+  <div class="pop glass" id="musicPop">
+    <label>Thư viện nhạc nền</label>
+    <select id="musicSel"><option>Đang tải…</option></select>
+    <div class="row"><button class="ghost" id="musicToggle">Bật nhạc</button>
+      <button class="ghost" id="musicPick">Chọn mp3…</button></div>
+    <div><label>Âm lượng nhạc</label><input type="range" class="slider" id="musicVol" min="0" max="1" step="0.01" value="0.25"></div>
+    <input type="file" id="musicFile" accept="audio/mpeg,audio/*" hidden>
+  </div>
+  <div class="pop glass" id="voicePop">
+    <div><label>Giọng</label><select id="voiceSelect"><option>Đang tải…</option></select></div>
+    <div id="blendWrap" hidden><label>Mượn ngữ điệu</label><select id="blendSelect"><option value="">Không</option></select></div>
+    <div><label>Giọng của bạn</label><div class="row">
+      <button class="ghost" id="cloneBtn">Tải clip mẫu…</button>
+      <label class="check"><input type="checkbox" id="denoiseChk" checked> Giảm nhiễu</label></div>
+      <input type="file" id="cloneFile" accept="audio/*" hidden></div>
+  </div>
+  <div class="pop glass" id="volPop"><label>Âm lượng giọng đọc</label>
+    <input type="range" class="slider" id="volSlider" min="0" max="1" step="0.01" value="1"></div>
+</section>
+
+<div id="toast" class="glass" hidden></div>
+<input type="file" id="epubInput" accept=".epub" hidden>
+<audio id="player" hidden></audio>
+<audio id="music" loop hidden></audio>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+let DEMO=false;
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch{return null}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+function toast(m,e=false){const t=$("#toast");t.textContent=m;t.classList.toggle("err",e);
+  t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,3200)}
+function esc(s){return(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+async function jget(u){const r=await fetch(u);if(!r.ok)throw 0;return r.json()}
+async function jpost(u,b){const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(b)});if(!r.ok)throw 0;return r.json()}
+function hue(id){let h=0;for(const c of(id||""))h=(h*31+c.charCodeAt(0))%360;return h}
+function genCover(b){const h=hue(b.id||b.title);return `<div class="gen-cover" style="background:
+  linear-gradient(150deg,hsl(${h} 34% 26%),hsl(${(h+40)%360} 42% 15%))">
+  <div class="gt">${esc(b.title)}</div><div class="ga">${esc(b.author||"")}</div></div>`}
+
+/* greeting */
+const GREET=["Chào bạn.","Bạn đã trở lại.","Một buổi tối yên tĩnh."];
+(function type(){const full=GREET[Math.floor(Math.random()*GREET.length)]+" ";const el=$("#greetType");let i=0;
+  (function tick(){if(i<=full.length){el.textContent=full.slice(0,i++);setTimeout(tick,60)}
+   else el.insertAdjacentHTML("beforeend",'<span class="accent">Muốn nghe gì hôm nay?</span>')})()})();
+
+function show(id){$$(".view").forEach(v=>v.classList.toggle("active",v.id===id));closePops()}
+$("#enterBtn").onclick=()=>{show("library");loadLibrary()};
+
+/* ============================ library carousel ============================ */
+const DEMO_BOOKS=[
+  {id:"d1",title:"Chuyện Nhỏ Ngày Bận Rộn",author:"Khuyết danh",chapter_count:8},
+  {id:"d2",title:"Gió Qua Rặng Liễu",author:"Thu Hà",chapter_count:12},
+  {id:"d3",title:"Người Gác Đèn",author:"Nam Phong",chapter_count:6},
+  {id:"d4",title:"Thư Viện Nửa Đêm",author:"Vũ Lam",chapter_count:24},
+  {id:"d5",title:"Mùa Hè Bất Tận",author:"An Nhiên",chapter_count:10},
+];
+const CF={books:[],idx:0,drag:0,dragging:false};
+async function loadLibrary(){
+  try{CF.books=await jget("/api/books")}catch{DEMO=true;CF.books=DEMO_BOOKS}
+  // mặc định: sách đọc gần nhất (ts lớn nhất)
+  let best=-1,bestTs=-1;
+  CF.books.forEach((b,i)=>{const p=store.get("progress:"+b.id);if(p&&p.ts>bestTs){bestTs=p.ts;best=i}});
+  CF.idx=best>=0?best:0;
+  buildSlides();layout();
+}
+function pct(id){const p=store.get("progress:"+id);return p&&p.percent?Math.round(p.percent):0}
+function buildSlides(){
+  const st=$("#stage");st.innerHTML="";
+  CF.books.forEach((b,i)=>{
+    const s=document.createElement("div");s.className="slide";s.dataset.i=i;
+    const pc=pct(b.id);
+    s.innerHTML=`<div class="cover-wrap"><span class="spine"></span>
+      <span class="badge ${pc?'':'new'}">${pc?pc+'%':'Mới'}</span></div>
+      <div class="cap"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author||'')}</div></div>`;
+    const cw=s.querySelector(".cover-wrap");
+    if(b.has_cover&&!DEMO){const img=new Image();img.src=`/api/books/${b.id}/cover`;
+      img.onerror=()=>cw.insertAdjacentHTML("beforeend",genCover(b));cw.appendChild(img)}
+    else cw.insertAdjacentHTML("beforeend",genCover(b));
+    s.addEventListener("click",()=>{if(Math.abs(CF.drag)>6)return;
+      const d=i-CF.idx;if(d===0)openBook(b);else{CF.idx=i;layout()}});
+    st.appendChild(s);
+  });
+}
+function layout(){
+  const sp=Math.min(240,innerWidth*0.52);
+  $$(".slide").forEach(s=>{
+    const i=+s.dataset.i;const p=i-CF.idx-CF.drag;const ap=Math.abs(p);
+    const x=p*sp, sc=Math.max(.62,1-ap*.16), op=Math.max(.15,1-ap*.42), ry=Math.max(-38,Math.min(38,-p*24));
+    s.style.transform=`translate(-50%,-50%) translateX(${x}px) scale(${sc}) perspective(900px) rotateY(${ry}deg)`;
+    s.style.opacity=op;s.style.zIndex=100-Math.round(ap*10);
+    s.style.pointerEvents=ap>2.5?"none":"auto";
+    s.classList.toggle("center",Math.round(CF.idx+CF.drag)===i);
+  });
+}
+/* drag / swipe */
+(function(){const st=$("#stage");let startX=0,active=false;
+  const down=e=>{active=true;CF.dragging=true;startX=(e.touches?e.touches[0].clientX:e.clientX);
+    st.classList.add("grabbing")};
+  const move=e=>{if(!active)return;const x=(e.touches?e.touches[0].clientX:e.clientX);
+    const sp=Math.min(240,innerWidth*0.52);CF.drag=-(x-startX)/sp;layout()};
+  const up=()=>{if(!active)return;active=false;st.classList.remove("grabbing");
+    let ni=CF.idx+Math.round(CF.drag);ni=Math.max(0,Math.min(CF.books.length-1,ni));
+    CF.idx=ni;CF.drag=0;layout();setTimeout(()=>CF.dragging=false,40)};
+  st.addEventListener("mousedown",down);addEventListener("mousemove",move);addEventListener("mouseup",up);
+  st.addEventListener("touchstart",down,{passive:true});st.addEventListener("touchmove",move,{passive:true});
+  st.addEventListener("touchend",up);
+})();
+addEventListener("resize",()=>{if($("#library").classList.contains("active"))layout();});
+addEventListener("keydown",e=>{if(!$("#library").classList.contains("active"))return;
+  if(e.key==="ArrowRight"&&CF.idx<CF.books.length-1){CF.idx++;layout()}
+  if(e.key==="ArrowLeft"&&CF.idx>0){CF.idx--;layout()}
+  if(e.key==="Enter")openBook(CF.books[CF.idx])});
+$("#addBook").onclick=()=>$("#epubInput").click();
+$("#epubInput").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  if(DEMO){toast("Chế độ xem thử — kết nối backend để tải sách thật.");return}
+  const fd=new FormData();fd.append("file",f);
+  try{await fetch("/api/upload",{method:"POST",body:fd});toast("Đã thêm sách.");loadLibrary()}
+  catch{toast("Không tải được sách.",true)}};
+
+/* ============================ reader ============================ */
+const R={book:null,ch:0,units:[],pos:-1,playing:false,vol:1};
+const player=$("#player"),music=$("#music");
+
+async function openBook(b){
+  let full;
+  if(DEMO)full=demoBook(b);
+  else{try{full=await jget(`/api/books/${b.id}`)}catch{toast("Không mở được sách.",true);return}}
+  R.book=full;
+  const cl=$("#chapList");cl.innerHTML="";   // mục lục
+  full.chapters.forEach(c=>{const it=document.createElement("button");it.className="chap-item";
+    it.innerHTML=`<span class="n">${String(c.index+1).padStart(2,"0")}</span><span>${esc(c.title||"Chương "+(c.index+1))}</span>`;
+    it.onclick=()=>{closePops();loadChapter(c.index,0,!RM.open)};cl.appendChild(it)});
+  show("reader");loadVoices();
+  const saved=store.get("progress:"+full.id)||{};
+  loadChapter(saved.ch||0,saved.pos??-1,false);
+}
+$("#backBtn").onclick=()=>{stop();show("library");buildSlides();layout()};
+
+function loadChapter(ci,startPos=-1,autoplay=false){
+  stop();R.ch=ci;R.pos=-1;
+  const ch=R.book.chapters[ci];const units=[];
+  if(ch.title)units.push({text:ch.title});
+  (ch.blocks||[]).forEach(bl=>{if(bl.type==="h")units.push({text:bl.text});
+    else (bl.sentences||[]).forEach(s=>units.push({text:s}))});
+  R.units=units;
+  $("#chapNow").textContent=ch.title||("Chương "+(ci+1));
+  $$("#chapList .chap-item").forEach((el,i)=>el.classList.toggle("current",i===ci));
+  updateProgress();
+  if(startPos>=0&&startPos<units.length){setActive(startPos);R.markU=startPos}
+  if(RM.open){paginate();renderPages(0)}   // đang tự đọc -> phân trang chương mới
+  if(autoplay)play(0);
+}
+function setActive(i){
+  R.pos=i;const u=R.units[i];if(!u)return;
+  updateProgress();
+  if(R.book){const percent=Math.min(100,100*((R.ch+(i+1)/R.units.length)/(R.book.chapters.length||1)));
+    store.set("progress:"+R.book.id,{ch:R.ch,pos:i,percent,ts:Date.now()})}
+}
+function updateProgress(){const done=R.pos+1,total=R.units.length||1;
+  const chPart=(R.ch+done/total)/(R.book?.chapters.length||1);
+  $("#progFill").style.width=(100*done/total)+"%";
+  $("#pctNow").textContent=Math.round(100*chPart)+"%";
+}
+
+/* audio */
+const cache=new Map();
+async function audioFor(text){if(DEMO)return null;if(cache.has(text))return cache.get(text);
+  const p=(async()=>{const r=await fetch("/api/tts",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({text})});if(!r.ok)throw 0;return URL.createObjectURL(await r.blob())})();
+  cache.set(text,p);p.catch(()=>cache.delete(text));return p}
+function prefetch(f,n=2){for(let k=f;k<f+n&&k<R.units.length;k++)audioFor(R.units[k].text).catch(()=>{})}
+let demoTimer=null;
+async function play(i){
+  if(RM.open)closeRead();          // bắt đầu nghe -> đóng chế độ tự đọc
+  if(i<0||i>=R.units.length){stop();return}
+  setActive(i);setPlaying(true);prefetch(i+1,2);
+  if(DEMO){clearTimeout(demoTimer);const d=900+R.units[i].text.length*42;
+    demoTimer=setTimeout(()=>{if(R.playing)play(i+1)},d);return}
+  try{const url=await audioFor(R.units[i].text);player.src=url;player.volume=R.vol;await player.play()}
+  catch{setPlaying(false);toast("Không phát được đoạn này.",true)}
+}
+player.onended=()=>{if(R.playing)play(R.pos+1);else setPlaying(false)};
+function setPlaying(on){R.playing=on;
+  $("#playIcon").innerHTML=on?'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>'}
+function stop(){R.playing=false;clearTimeout(demoTimer);try{player.pause()}catch{}setPlaying(false)}
+$("#playBtn").onclick=()=>{if(R.playing)stop();
+  else if(R.pos<0)play(0);else if(!DEMO&&player.src){player.play();setPlaying(true)}else play(R.pos)};
+$("#prevBtn").onclick=()=>play(Math.max(0,R.pos-1));
+$("#nextBtn").onclick=()=>play(Math.min(R.units.length-1,R.pos+1));
+addEventListener("keydown",e=>{if(!$("#reader").classList.contains("active"))return;
+  if(RM.open)return;                       // đang tự đọc: nhường phím cho lật trang
+  if(e.target.matches("input,select"))return;
+  if(e.code==="Space"){e.preventDefault();$("#playBtn").click()}
+  if(e.code==="ArrowRight")$("#nextBtn").click();if(e.code==="ArrowLeft")$("#prevBtn").click()});
+
+/* ============================ popovers ============================ */
+function closePops(){$$(".pop").forEach(p=>p.classList.remove("open"));
+  $$(".icon-btn").forEach(b=>b.setAttribute("aria-expanded","false"))}
+function anchorPop(pop,btn){const r=btn.getBoundingClientRect();pop.style.left="";pop.style.right="";
+  pop.style.bottom=(innerHeight-r.top+12)+"px";
+  const w=Math.min(innerWidth*0.9,300);let left=r.left+r.width/2-w/2;
+  left=Math.max(12,Math.min(innerWidth-w-12,left));pop.style.left=left+"px"}
+function bindPop(btnId,popId){const btn=$(btnId),pop=$(popId);
+  btn.onclick=e=>{e.stopPropagation();const open=pop.classList.contains("open");closePops();
+    if(!open){anchorPop(pop,btn);pop.classList.add("open");btn.setAttribute("aria-expanded","true")}}}
+bindPop("#chapBtn","#chapPop");bindPop("#musicBtn","#musicPop");
+bindPop("#voiceBtn","#voicePop");bindPop("#volBtn","#volPop");
+document.addEventListener("click",e=>{if(!e.target.closest(".pop")&&!e.target.closest(".icon-btn"))closePops()});
+addEventListener("resize",()=>closePops());
+
+/* volume (giọng) */
+const vslider=$("#volSlider");R.vol=store.get("volume")??1;vslider.value=R.vol;
+vslider.oninput=()=>{R.vol=+vslider.value;player.volume=R.vol;store.set("volume",R.vol)};
+
+/* ============================ nhạc nền (thư viện) ============================ */
+// Thư viện tự nạp từ /api/music (backend liệt kê frontend/music/*.mp3).
+// Thiếu backend (xem thử) thì dùng danh sách tĩnh dưới đây.
+const MUSIC_FALLBACK=[{name:"Ambient",src:"/music/ambient.mp3"}];
+let musicOn=false,musicList=[];
+music.volume=store.get("musicVol")??0.25;$("#musicVol").value=music.volume;
+function setTrack(src){const keep=musicOn;music.src=src;store.set("musicSrc",src);
+  if(keep)music.play().catch(()=>{})}
+async function loadMusicLib(){
+  const sel=$("#musicSel");
+  try{musicList=DEMO?MUSIC_FALLBACK:await jget("/api/music")}catch{musicList=MUSIC_FALLBACK}
+  if(!musicList||!musicList.length){sel.innerHTML='<option>(chưa có nhạc)</option>';sel.disabled=true;return}
+  sel.disabled=false;sel.innerHTML="";
+  musicList.forEach(t=>{const o=document.createElement("option");o.value=t.src;o.textContent=t.name;sel.appendChild(o)});
+  const saved=store.get("musicSrc");const pick=musicList.find(t=>t.src===saved)||musicList[0];
+  sel.value=pick.src;setTrack(pick.src);
+}
+$("#musicSel").onchange=e=>setTrack(e.target.value);
+loadMusicLib();
+$("#musicToggle").onclick=async()=>{
+  if(musicOn){music.pause();musicOn=false}
+  else{ if(!music.src){toast("Chưa có nhạc — chọn một bản hoặc “Chọn mp3…”.",true);return}
+    try{await music.play();musicOn=true}catch{toast("Không phát được nhạc.",true)} }
+  $("#musicToggle").textContent=musicOn?"Tắt nhạc":"Bật nhạc";
+  $("#musicBtn").classList.toggle("on",musicOn);
+};
+$("#musicVol").oninput=e=>{music.volume=+e.target.value;store.set("musicVol",+e.target.value)};
+$("#musicPick").onclick=()=>$("#musicFile").click();
+$("#musicFile").onchange=e=>{const f=e.target.files[0];if(!f)return;
+  setTrack(URL.createObjectURL(f));music.play().then(()=>{musicOn=true;
+    $("#musicToggle").textContent="Tắt nhạc";$("#musicBtn").classList.add("on")}).catch(()=>{})};
+
+/* ============================ voices ============================ */
+async function loadVoices(){
+  const sel=$("#voiceSelect"),bw=$("#blendWrap"),bs=$("#blendSelect");
+  if(DEMO){sel.innerHTML='<option>Thục Đoan</option><option>Giọng của bạn</option>';return}
+  try{const v=await jget("/api/voices");sel.innerHTML="";
+    (v.voices||[]).forEach(o=>{const op=document.createElement("option");op.value=o.id;op.textContent=o.label;
+      if(o.id===v.current)op.selected=true;sel.appendChild(op)});
+    if(v.voices&&v.voices.length>1){bw.hidden=false;bs.innerHTML='<option value="">Không</option>';
+      v.voices.forEach(o=>{const op=document.createElement("option");op.value=o.id;op.textContent=o.label;
+        if(o.id===v.blend)op.selected=true;bs.appendChild(op)})}
+  }catch{sel.innerHTML='<option>Mặc định</option>'}
+}
+$("#voiceSelect").onchange=async e=>{if(DEMO)return;
+  try{await jpost("/api/voice",{voice_id:e.target.value});cache.clear();toast("Đã đổi giọng.")}
+  catch{toast("Không đổi được giọng.",true)}};
+$("#blendSelect").onchange=async e=>{if(DEMO)return;
+  try{await jpost("/api/voice/blend",{voice_id:e.target.value||null});cache.clear();
+    toast(e.target.value?"Đã mượn ngữ điệu.":"Bỏ mượn ngữ điệu.")}catch{toast("Không đặt được.",true)}};
+$("#cloneBtn").onclick=()=>$("#cloneFile").click();
+$("#cloneFile").onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  if(DEMO){toast("Chế độ xem thử — kết nối backend để nhân bản giọng.");return}
+  const fd=new FormData();fd.append("file",f);fd.append("denoise",$("#denoiseChk").checked?"1":"0");
+  toast("Đang xử lý giọng mẫu…");
+  try{const r=await fetch("/api/voice/clone",{method:"POST",body:fd});if(!r.ok)throw 0;
+    cache.clear();toast("Đã dùng giọng của bạn.")}catch{toast("Nhân bản thất bại.",true)}};
+
+/* ============================ chế độ "Để tôi đọc" (sách mở 2 trang, lật) ============================ */
+const RM={open:false,pages:[],spread:0,anim:false};
+const bookView=$("#bookView"),bookEl=$("#book");
+function pagesPerSpread(){return innerWidth<=680?1:2}
+/* token: heading + TỪNG CÂU (mỗi câu = 1 unit, khớp thứ tự R.units) */
+function buildTokens(){
+  const ch=R.book.chapters[R.ch];const toks=[];let u=0;
+  if(ch.title){toks.push({type:'h',text:ch.title,u});u++}
+  (ch.blocks||[]).forEach(b=>{
+    if(b.type==='h'){toks.push({type:'h',text:b.text,u});u++}
+    else (b.sentences||[]).forEach((s,i)=>{toks.push({type:'s',text:s,u,ps:i===0});u++})
+  });
+  return toks;
+}
+function tokHtml(toks){
+  let h='',openP=false;
+  for(const t of (toks||[])){
+    if(t.type==='h'){ if(openP){h+='</p>';openP=false} h+=`<h3>${esc(t.text)}</h3>` }
+    else{ if(t.ps){ if(openP)h+='</p>'; h+='<p>'; openP=true } else if(!openP){ h+='<p>'; openP=true }
+      h+=`<span class="ln" data-u="${t.u}">${esc(t.text)} </span>` }
+  }
+  if(openP)h+='</p>';
+  return h;
+}
+function splitTok(t,box,avail){                 // câu dài hơn cả trang -> tách theo từ, giữ data-u
+  const words=t.text.split(/\s+/),out=[];let acc='';
+  const fit=txt=>{box.innerHTML=tokHtml([{...t,text:txt}]);return box.scrollHeight<=avail};
+  for(let i=0;i<words.length;i++){const tr=acc?acc+' '+words[i]:words[i];
+    if(fit(tr))acc=tr;else{ if(acc)out.push({...t,text:acc}); acc=words[i] }}
+  if(acc)out.push({...t,text:acc});
+  return out.length?out:[t];
+}
+function paginate(){
+  const box=$("#pageL"),pageEl=box.closest('.page'),cs=getComputedStyle(pageEl);
+  const avail=pageEl.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)-30;
+  const toks=buildTokens();const pages=[];let cur=[];
+  const fits=arr=>{box.innerHTML=tokHtml(arr);return box.scrollHeight<=avail};
+  for(const t of toks){
+    if(fits(cur.concat([t]))){cur.push(t);continue}
+    if(cur.length){pages.push(cur);cur=[]}
+    const t2=Object.assign({},t,{ps:t.type==='s'?false:t.ps});   // đầu trang mới: bỏ thụt đầu dòng
+    if(fits([t2]))cur=[t2];
+    else{ for(const part of splitTok(t2,box,avail))pages.push([part]);cur=[] }
+  }
+  if(cur.length)pages.push(cur);
+  if(!pages.length)pages.push([]);
+  RM.pages=pages;box.innerHTML='';
+}
+function markCurrentLine(){
+  $$('.ln.marked',bookView).forEach(x=>x.classList.remove('marked'));
+  if(R.markU==null)return;
+  const el=bookView.querySelector(`.ln[data-u="${R.markU}"]`);
+  if(el)el.classList.add('marked');
+}
+function renderPages(spread){
+  RM.spread=Math.max(0,Math.min(RM.pages.length-1,spread));const per=pagesPerSpread();
+  $("#pageL").innerHTML=tokHtml(RM.pages[RM.spread]);$("#numL").textContent=RM.spread+1;
+  if(per===2&&RM.spread+1<RM.pages.length){$("#pageR").innerHTML=tokHtml(RM.pages[RM.spread+1]);
+    $("#numR").textContent=RM.spread+2}
+  else{$("#pageR").innerHTML='';$("#numR").textContent=''}
+  markCurrentLine();
+}
+function openRead(){
+  stop();                                   // tắt giọng; nhạc nền giữ nguyên
+  RM.open=true;bookView.classList.add("open");$("#readFabLabel").textContent="Nghe đọc";
+  requestAnimationFrame(()=>{paginate();renderPages(0)});
+}
+function closeRead(){RM.open=false;bookView.classList.remove("open");$("#readFabLabel").textContent="Để tôi đọc"}
+$("#readFab").onclick=()=>RM.open?closeRead():openRead();
+function turn(dir){
+  const per=pagesPerSpread();if(RM.anim)return;
+  const target=RM.spread+dir*per;if(target<0||target>=RM.pages.length)return;
+  RM.anim=true;
+  const isNext=(per===1||dir>0);
+  const f=isNext?$("#flipR"):$("#flipL");
+  if(isNext){
+    f.querySelector(".front .pcontent").innerHTML=tokHtml((per===1?RM.pages[RM.spread]:RM.pages[RM.spread+1])||[]);
+    f.querySelector(".back .pcontent").innerHTML=tokHtml(RM.pages[target]||[]);
+  }else{
+    f.querySelector(".front .pcontent").innerHTML=tokHtml(RM.pages[RM.spread]||[]);
+    f.querySelector(".back .pcontent").innerHTML=tokHtml(RM.pages[target+1]||[]);
+  }
+  bookEl.classList.remove("turning-next","turning-prev");   // đảm bảo flipper ở trạng thái 0
+  f.hidden=false;
+  void bookEl.offsetWidth;                                   // ép reflow -> frame khởi đầu sạch (hết nháy)
+  requestAnimationFrame(()=>bookEl.classList.add(isNext?"turning-next":"turning-prev"));
+  setTimeout(()=>{
+    renderPages(target);                                     // vẽ trang mới TRƯỚC
+    $("#flipR").hidden=true;$("#flipL").hidden=true;         // rồi mới ẩn flipper -> không chớp cuối
+    bookEl.classList.remove("turning-next","turning-prev");
+    RM.anim=false;
+  },740);
+}
+$("#navNext").onclick=()=>turn(1);$("#navPrev").onclick=()=>turn(-1);
+/* ---- đánh dấu THEO DÒNG: chạm một câu để đặt điểm đọc tiếp ---- */
+function markLine(u){
+  R.markU=u;R.pos=u;setActive(u);              // đặt điểm tiếp tục + lưu tiến độ
+  try{player.removeAttribute("src");player.load()}catch{}   // buộc tổng hợp lại từ điểm mới
+  markCurrentLine();
+  toast("Đã đánh dấu dòng này. Bấm ▶ để nghe tiếp từ đây.");
+}
+bookView.addEventListener("click",e=>{const ln=e.target.closest(".ln");if(ln)markLine(+ln.dataset.u)});
+addEventListener("keydown",e=>{if(!RM.open)return;
+  if(e.key==="ArrowRight"){e.preventDefault();turn(1)}
+  if(e.key==="ArrowLeft"){e.preventDefault();turn(-1)}
+  if(e.key==="Escape")closeRead()});
+(function(){let sx=0,on=false;
+  bookView.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;on=true},{passive:true});
+  bookView.addEventListener("touchend",e=>{if(!on)return;on=false;
+    const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50)turn(dx<0?1:-1)})})();
+addEventListener("resize",()=>{if(RM.open){paginate();renderPages(RM.spread)}});
+
+/* ============================================================================
+   TODO (ý tưởng ghi nhận để làm sau): THỦ THƯ TƯƠNG TÁC
+   - Nhân vật thủ thư trở thành nhân vật tương tác được.
+   - Đọc đủ số sách theo các MỐC -> mở khoá tương tác: trang phục mới, biểu cảm mới.
+   - Gợi ý cấu trúc: lưu {booksFinished, unlocks:[]} trong localStorage; mỗi mốc
+     (vd 3/10/25 cuốn) bật một "skin"/"expression"; thay ảnh/Lottie thủ thư tương ứng.
+   ============================================================================ */
+
+/* ============================ demo content ============================ */
+function demoBook(b){
+  const L=["Buổi chiều buông xuống thật chậm, như thể thời gian cũng muốn nán lại thêm chút nữa bên khung cửa sổ đã bạc màu sơn.",
+   "Cô đặt cuốn sách xuống bàn, ánh đèn dầu hắt lên trang giấy đã ngả vàng, để lại những vệt sáng run rẩy theo từng cơn gió lùa.",
+   "«Con về rồi đấy à?» — giọng bà vọng ra từ gian bếp, ấm như mùi cơm mới, như thể chưa từng có những năm tháng xa cách ở giữa.",
+   "Ngoài hiên, gió khẽ lay mấy tán lá, mang theo hương của một mùa sắp hết, thứ hương mà chỉ những người từng rời đi mới nhận ra.",
+   "Nó mỉm cười, thấy lòng mình dịu lại sau cả một ngày dài ngược xuôi giữa phố xá chật chội và những cuộc hẹn chẳng đi tới đâu.",
+   "Trên kệ, những gáy sách cũ xếp cạnh nhau lặng lẽ, mỗi cuốn là một mùa đã qua, một giọng nói tưởng đã quên nay bỗng vọng về.",
+   "Bà rót cho nó một chén trà, hơi nước bốc lên mờ cả khung ảnh treo trên tường, nơi có gương mặt của những người không còn nữa.",
+   "Đêm ấy nó ngủ lại căn gác nhỏ, nghe mưa gõ đều trên mái ngói, và lần đầu tiên sau rất lâu, nó thấy mình thật sự đã về nhà."];
+  const chapters=[];const n=Math.min(b.chapter_count||6,6);
+  for(let c=0;c<n;c++){const blocks=[{type:"h",text:"Phần "+(c+1)}];
+    for(let p=0;p<8;p++)blocks.push({type:"p",sentences:L.slice(0,4+((c+p)%5))});   // dài -> nhiều trang
+    chapters.push({index:c,title:"Chương "+(c+1),blocks})}
+  return {...b,chapters}}
+</script>
+</body>
+</html>
