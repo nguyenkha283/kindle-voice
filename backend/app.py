@@ -39,6 +39,13 @@ def _pick_voice_model() -> Path | None:
 app = FastAPI(title="Kindle Voice (offline)")
 
 _PROVIDER = os.environ.get("TTS_PROVIDER", "piper").lower()
+
+# ==== Cờ GIỌNG RIÊNG (register đa sắc thái + nhân bản giọng) ====
+# "0" = TẮT giọng riêng -> đọc bằng giọng mặc định VieNeu (Thục Đoan).
+#       (File trung_tinh.wav... vẫn giữ nguyên, chỉ không dùng tới.)
+# Bật lại: đổi "0" thành "1" ở dòng dưới rồi push (hoặc đặt env USE_CUSTOM_VOICE=1).
+USE_CUSTOM_VOICE = os.environ.get("USE_CUSTOM_VOICE", "0") in ("1", "true", "True", "yes")
+
 if _PROVIDER == "vieneu":
     from vieneu_engine import VieNeuEngine
     tts = VieNeuEngine()
@@ -47,7 +54,7 @@ if _PROVIDER == "vieneu":
     if not _ref:
         _clips = sorted(REFERENCE_DIR.glob("clip.*"))
         _ref = str(_clips[0]) if _clips else None
-    if _ref and hasattr(tts, "set_reference"):
+    if USE_CUSTOM_VOICE and _ref and hasattr(tts, "set_reference"):
         try:
             tts.set_reference(_ref)
         except Exception:
@@ -60,7 +67,7 @@ else:
 # và app đọc bằng giọng mặc định như cũ. Thả đủ clip vào là tự bật.
 _bank = None
 _tagger = None
-if _PROVIDER == "vieneu":
+if _PROVIDER == "vieneu" and USE_CUSTOM_VOICE:
     try:
         from registers import RegisterBank
         from tagging import Tagger
@@ -120,7 +127,7 @@ def _load_book(path: Path) -> Book:
 # --------------------------------------------------------------------- API
 @app.get("/api/status")
 def status():
-    return {"tts": tts.status(), "provider": _PROVIDER, "book_count": len(_iter_epubs())}
+    return {"tts": tts.status(), "provider": _PROVIDER, "book_count": len(_iter_books())}
 
 
 @app.get("/api/voices")
@@ -130,6 +137,7 @@ def list_voices():
         "current": getattr(tts, "voice_id", None),
         "blend": getattr(tts, "blend_from", None),
         "voices": tts.list_voices(),
+        "custom_voice": USE_CUSTOM_VOICE,
     }
 
 
@@ -150,6 +158,8 @@ class BlendReq(BaseModel):
 
 @app.post("/api/voice/blend")
 def set_blend(req: BlendReq):
+    if not USE_CUSTOM_VOICE:
+        raise HTTPException(403, "Tính năng giọng riêng đang tắt.")
     if not hasattr(tts, "set_blend"):
         raise HTTPException(400, "Engine không hỗ trợ mượn ngữ điệu.")
     if tts.set_blend(req.voice_id or None):
@@ -159,6 +169,8 @@ def set_blend(req: BlendReq):
 
 @app.post("/api/voice/clone")
 async def clone_voice(file: UploadFile = File(...), denoise: str = Form("0")):
+    if not USE_CUSTOM_VOICE:
+        raise HTTPException(403, "Tính năng giọng riêng đang tắt.")
     if not hasattr(tts, "set_reference"):
         raise HTTPException(400, "Engine hiện tại không hỗ trợ nhân bản giọng (chỉ VieNeu).")
     name = os.path.basename(file.filename or "")

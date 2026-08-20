@@ -340,7 +340,7 @@ select,input{font-family:inherit}
   <div class="pop glass" id="voicePop">
     <div><label>Giọng</label><select id="voiceSelect"><option>Đang tải…</option></select></div>
     <div id="blendWrap" hidden><label>Mượn ngữ điệu</label><select id="blendSelect"><option value="">Không</option></select></div>
-    <div><label>Giọng của bạn</label><div class="row">
+    <div id="cloneSection"><label>Giọng của bạn</label><div class="row">
       <button class="ghost" id="cloneBtn">Tải clip mẫu…</button>
       <label class="check"><input type="checkbox" id="denoiseChk" checked> Giảm nhiễu</label></div>
       <input type="file" id="cloneFile" accept="audio/*" hidden></div>
@@ -593,11 +593,14 @@ async function loadVoices(){
   const sel=$("#voiceSelect"),bw=$("#blendWrap"),bs=$("#blendSelect");
   if(DEMO){sel.innerHTML='<option>Thục Đoan</option><option>Giọng của bạn</option>';return}
   try{const v=await jget("/api/voices");sel.innerHTML="";
+    const custom=v.custom_voice!==false;         // backend tắt giọng riêng -> ẩn clone/blend
+    $("#cloneSection").hidden=!custom;
     (v.voices||[]).forEach(o=>{const op=document.createElement("option");op.value=o.id;op.textContent=o.label;
       if(o.id===v.current)op.selected=true;sel.appendChild(op)});
-    if(v.voices&&v.voices.length>1){bw.hidden=false;bs.innerHTML='<option value="">Không</option>';
+    if(custom&&v.voices&&v.voices.length>1){bw.hidden=false;bs.innerHTML='<option value="">Không</option>';
       v.voices.forEach(o=>{const op=document.createElement("option");op.value=o.id;op.textContent=o.label;
         if(o.id===v.blend)op.selected=true;bs.appendChild(op)})}
+    else bw.hidden=true;
   }catch{sel.innerHTML='<option>Mặc định</option>'}
 }
 $("#voiceSelect").onchange=async e=>{if(DEMO)return;
