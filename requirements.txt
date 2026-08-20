@@ -8,3 +8,6 @@ python-multipart>=0.0.9
 # cho Windows/macOS/Linux, không cần piper-phonemize nên cài dễ hơn hẳn.
 # Nếu vẫn lỗi, xem README phần "Cách 2: dùng binary piper".
 piper-tts>=1.3
+
+# Đọc PDF (thuần Python, chạy tốt trên ARM)
+pypdf>=4.0

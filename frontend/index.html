@@ -101,6 +101,13 @@ select,input{font-family:inherit}
 .badge{position:absolute;top:10px;right:10px;padding:5px 9px;border-radius:999px;font-size:.7rem;
   font-weight:600;letter-spacing:.02em;color:var(--lamp-soft);z-index:2}
 .badge.new{color:var(--paper-dim)}
+.del-btn{position:absolute;top:8px;left:8px;width:32px;height:32px;border-radius:50%;z-index:3;
+  display:grid;place-items:center;color:#f2c9bd;background:rgba(20,14,10,.55);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--glass-brd);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .15s,background .15s}
+.del-btn svg{width:16px;height:16px;fill:currentColor}
+.slide.center .del-btn{opacity:1;pointer-events:auto}
+.del-btn:hover{background:var(--rose);color:#231a14;transform:scale(1.08)}
 .slide .cap{position:absolute;left:0;right:0;bottom:-58px;text-align:center;opacity:0;transition:opacity .3s}
 .slide.center .cap{opacity:1}
 .slide .cap .t{font-family:var(--read);font-size:1rem;color:var(--paper)}
@@ -261,7 +268,7 @@ select,input{font-family:inherit}
   <div class="lib-top">
     <div><div class="eyebrow">Kệ sách</div><h1 id="libTitle">Hôm nay đọc gì?</h1></div>
     <button class="add-book glass" id="addBook">
-      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg> Thêm .epub
+      <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg> Thêm sách
     </button>
   </div>
   <div class="stage" id="stage"></div>
@@ -343,7 +350,7 @@ select,input{font-family:inherit}
 </section>
 
 <div id="toast" class="glass" hidden></div>
-<input type="file" id="epubInput" accept=".epub" hidden>
+<input type="file" id="epubInput" accept=".epub,.pdf" hidden>
 <audio id="player" hidden></audio>
 <audio id="music" loop hidden></audio>
 
@@ -396,16 +403,27 @@ function buildSlides(){
     const s=document.createElement("div");s.className="slide";s.dataset.i=i;
     const pc=pct(b.id);
     s.innerHTML=`<div class="cover-wrap"><span class="spine"></span>
-      <span class="badge ${pc?'':'new'}">${pc?pc+'%':'Mới'}</span></div>
+      <span class="badge ${pc?'':'new'}">${pc?pc+'%':'Mới'}</span>
+      <button class="del-btn" title="Xóa khỏi thư viện" aria-label="Xóa">
+        <svg viewBox="0 0 24 24"><path d="M6 7h12l-1 14H7L6 7zm3-3h6l1 2H8l1-2z"/></svg></button></div>
       <div class="cap"><div class="t">${esc(b.title)}</div><div class="a">${esc(b.author||'')}</div></div>`;
     const cw=s.querySelector(".cover-wrap");
     if(b.has_cover&&!DEMO){const img=new Image();img.src=`/api/books/${b.id}/cover`;
       img.onerror=()=>cw.insertAdjacentHTML("beforeend",genCover(b));cw.appendChild(img)}
     else cw.insertAdjacentHTML("beforeend",genCover(b));
+    s.querySelector(".del-btn").addEventListener("click",e=>{e.stopPropagation();deleteBook(b,i)});
     s.addEventListener("click",()=>{if(Math.abs(CF.drag)>6)return;
       const d=i-CF.idx;if(d===0)openBook(b);else{CF.idx=i;layout()}});
     st.appendChild(s);
   });
+}
+async function deleteBook(b,i){
+  if(!confirm(`Xóa "${b.title}" khỏi thư viện?`))return;
+  if(DEMO){CF.books.splice(i,1);CF.idx=Math.max(0,Math.min(CF.idx,CF.books.length-1));
+    buildSlides();layout();toast("Đã xóa (xem thử).");return}
+  try{const r=await fetch(`/api/books/${b.id}`,{method:"DELETE"});if(!r.ok)throw 0;
+    toast("Đã xóa khỏi thư viện.");loadLibrary()}
+  catch{toast("Không xóa được sách.",true)}
 }
 function layout(){
   const sp=Math.min(240,innerWidth*0.52);

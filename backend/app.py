@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from epub_parser import parse_epub, get_cover_bytes, book_id_for, Book
+from pdf_parser import parse_pdf
 from tts_engine import TTSEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -84,15 +85,26 @@ def _synth_text(text: str) -> bytes:
 _book_cache: dict[str, tuple[float, Book]] = {}
 
 
-def _iter_epubs() -> list[Path]:
-    return sorted(BOOKS_DIR.glob("*.epub"))
+SUPPORTED_EXT = (".epub", ".pdf")
+
+
+def _iter_books() -> list[Path]:
+    files = [p for p in BOOKS_DIR.iterdir()
+             if p.is_file() and p.suffix.lower() in SUPPORTED_EXT]
+    return sorted(files)
 
 
 def _path_for_id(book_id: str) -> Path | None:
-    for p in _iter_epubs():
+    for p in _iter_books():
         if book_id_for(p) == book_id:
             return p
     return None
+
+
+def _parse_any(path: Path) -> Book:
+    if path.suffix.lower() == ".pdf":
+        return parse_pdf(path)
+    return parse_epub(path)
 
 
 def _load_book(path: Path) -> Book:
@@ -100,7 +112,7 @@ def _load_book(path: Path) -> Book:
     cached = _book_cache.get(book_id_for(path))
     if cached and cached[0] == mtime:
         return cached[1]
-    book = parse_epub(path)
+    book = _parse_any(path)
     _book_cache[book.id] = (mtime, book)
     return book
 
@@ -171,7 +183,7 @@ async def clone_voice(file: UploadFile = File(...), denoise: str = Form("0")):
 @app.get("/api/books")
 def list_books():
     out = []
-    for p in _iter_epubs():
+    for p in _iter_books():
         try:
             out.append(_load_book(p).meta_dict())
         except Exception as e:  # noqa: BLE001
@@ -198,10 +210,25 @@ def get_cover(book_id: str):
     path = _path_for_id(book_id)
     if not path:
         raise HTTPException(404, "Không tìm thấy sách")
+    if path.suffix.lower() != ".epub":       # PDF chưa hỗ trợ ảnh bìa -> dùng bìa tự sinh
+        raise HTTPException(404, "Sách không có ảnh bìa")
     data = get_cover_bytes(path)
     if not data:
         raise HTTPException(404, "Sách không có ảnh bìa")
     return Response(content=data, media_type="image/jpeg")
+
+
+@app.delete("/api/books/{book_id}")
+def delete_book(book_id: str):
+    path = _path_for_id(book_id)
+    if not path:
+        raise HTTPException(404, "Không tìm thấy sách")
+    try:
+        path.unlink()
+    except OSError as e:
+        raise HTTPException(500, f"Không xóa được: {e}")
+    _book_cache.pop(book_id, None)
+    return {"ok": True, "deleted": book_id}
 
 
 MUSIC_DIR = Path(os.environ.get("MUSIC_DIR", ROOT / "frontend" / "music"))
@@ -224,15 +251,19 @@ def list_music():
 @app.post("/api/upload")
 async def upload_book(file: UploadFile = File(...)):
     name = os.path.basename(file.filename or "")
-    if not name.lower().endswith(".epub"):
-        raise HTTPException(400, "Chỉ nhận file .epub")
+    if not name.lower().endswith(SUPPORTED_EXT):
+        raise HTTPException(400, "Chỉ nhận file .epub hoặc .pdf")
     dest = BOOKS_DIR / name
     dest.write_bytes(await file.read())
     try:
         book = _load_book(dest)
         return book.meta_dict()
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(400, f"Không đọc được EPUB: {e}")
+        try:
+            dest.unlink()                       # bỏ file hỏng để khỏi kẹt thư viện
+        except OSError:
+            pass
+        raise HTTPException(400, f"Không đọc được sách: {e}")
 
 
 class TTSRequest(BaseModel):
