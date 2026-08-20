@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+voices/*.onnx
+voices/*.onnx.json
+books/*.epub
+reference/clip.*
+cache/
