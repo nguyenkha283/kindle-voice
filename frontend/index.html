@@ -43,6 +43,7 @@ select,input{font-family:inherit}
   background:#c8b48f url("https://qgyrvstpkyjqgqrcbgzy.supabase.co/storage/v1/object/public/project-images/Gemini_Generated_Image_i5l0msi5l0msi5l0%20(1).png") center/cover no-repeat}
 .scene-bg::after{content:"";position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(18,13,7,.34),rgba(18,13,7,.08) 28%,rgba(18,13,7,.12) 66%,rgba(18,13,7,.44))}
+#ff{position:fixed;inset:0;z-index:1;pointer-events:none}
 
 .view{position:fixed;inset:0;z-index:5;display:none}
 .view.active{display:block}
@@ -253,6 +254,7 @@ select,input{font-family:inherit}
 </head>
 <body>
 <div class="scene-bg" aria-hidden="true"></div>
+<canvas id="ff" aria-hidden="true"></canvas>
 
 <!-- GREETING -->
 <section class="view active" id="greeting">
@@ -516,7 +518,15 @@ function prefetch(f,n=2){for(let k=f;k<f+n&&k<R.units.length;k++)audioFor(R.unit
 let demoTimer=null;
 async function play(i){
   if(RM.open)closeRead();          // bắt đầu nghe -> đóng chế độ tự đọc
-  if(i<0||i>=R.units.length){stop();return}
+  if(i<0){stop();return}
+  if(i>=R.units.length){           // hết chương -> tự sang chương sau
+    if(R.book&&R.ch+1<R.book.chapters.length){
+      const nx=R.book.chapters[R.ch+1];
+      toast("Chương tiếp theo: "+(nx.title||("Chương "+(R.ch+2))));
+      loadChapter(R.ch+1,0,true);   // nạp + tự phát từ đầu chương
+    } else { stop(); toast("Đã đọc hết sách."); }
+    return;
+  }
   setActive(i);setPlaying(true);prefetch(i+1,2);
   if(DEMO){clearTimeout(demoTimer);const d=900+R.units[i].text.length*42;
     demoTimer=setTimeout(()=>{if(R.playing)play(i+1)},d);return}
@@ -736,6 +746,54 @@ addEventListener("resize",()=>{if(RM.open){paginate();renderPages(RM.spread)}});
    - Gợi ý cấu trúc: lưu {booksFinished, unlocks:[]} trong localStorage; mỗi mốc
      (vd 3/10/25 cuốn) bật một "skin"/"expression"; thay ảnh/Lottie thủ thư tương ứng.
    ============================================================================ */
+
+/* ============================ đom đóm (ambient, vàng nến) ============================ */
+(function(){
+  const cv=document.getElementById('ff');if(!cv)return;const ctx=cv.getContext('2d');
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W,H,DPR,flies=[],running=true;
+  const rnd=(a,b)=>a+Math.random()*(b-a);
+  function newFly(){return{x:rnd(0,innerWidth),y:rnd(0,innerHeight),
+    vx:rnd(-.12,.12),vy:rnd(-.12,.04),ax:0,ay:0,
+    r:rnd(1.1,2.6),glow:rnd(7,17),phase:rnd(0,Math.PI*2),
+    tw:rnd(.5,1.5),hue:rnd(34,44)}}          // vàng ấm như ngọn nến
+  function build(){
+    let n=Math.max(28,Math.min(95,Math.round(innerWidth*innerHeight/26000))); // mật độ nhiều
+    if(reduce)n=Math.min(n,20);
+    flies=Array.from({length:n},newFly);
+  }
+  function resize(){DPR=Math.min(devicePixelRatio||1,2);
+    W=cv.width=innerWidth*DPR;H=cv.height=innerHeight*DPR;
+    cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';build()}
+  let t=0;
+  function frame(){
+    if(!running)return;
+    t+=1/60;ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';
+    for(const f of flies){
+      if(!reduce){
+        f.ax=(f.ax+rnd(-.02,.02))*0.92;f.ay=(f.ay+rnd(-.02,.02))*0.92;
+        f.vx=(f.vx+f.ax)*0.985;f.vy=(f.vy+f.ay)*0.985;
+        const sp=Math.hypot(f.vx,f.vy),mx=0.5;if(sp>mx){f.vx*=mx/sp;f.vy*=mx/sp}
+        f.x+=f.vx;f.y+=f.vy;
+        if(f.x<-20)f.x=innerWidth+20;if(f.x>innerWidth+20)f.x=-20;
+        if(f.y<-20)f.y=innerHeight+20;if(f.y>innerHeight+20)f.y=-20;
+      }
+      const a=Math.sin(t*f.tw+f.phase)*.5+.5,al=.12+a*.88;
+      const x=f.x*DPR,y=f.y*DPR,r=f.r*DPR,g=f.glow*DPR*(.7+a*.6);
+      const gr=ctx.createRadialGradient(x,y,0,x,y,g);
+      gr.addColorStop(0,`hsla(${f.hue},100%,70%,${.9*al})`);
+      gr.addColorStop(.28,`hsla(${f.hue},100%,55%,${.45*al})`);
+      gr.addColorStop(1,`hsla(${f.hue},95%,48%,0)`);
+      ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,g,0,7);ctx.fill();
+      ctx.fillStyle=`hsla(${f.hue},100%,86%,${al})`;
+      ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  resize();addEventListener('resize',resize);
+  document.addEventListener('visibilitychange',()=>{running=!document.hidden;if(running)frame()});
+  frame();
+})();
 
 /* ============================ demo content ============================ */
 function demoBook(b){
