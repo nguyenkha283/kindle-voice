@@ -16,9 +16,9 @@
   /* glass */
   --glass-bg:rgba(38,28,20,.42);
   --glass-strong:rgba(30,22,15,.6);
-  --glass-brd:rgba(88,73,57,.16);
+  --glass-brd:rgba(244,220,170,.16);
   --glass-hi:inset 0 1px 0 rgba(255,255,255,.10);
-  --blur:blur(6px) saturate(1.35);
+  --blur:blur(22px) saturate(1.35);
   --radius:16px;
   --shadow:0 18px 55px -22px rgba(0,0,0,.75);
   --display:"Fraunces",Georgia,serif; --read:"Lora",Georgia,serif; --ui:"Inter",system-ui,sans-serif;
@@ -35,7 +35,7 @@ select,input{font-family:inherit}
 .glass{background:var(--glass-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
   border:1px solid var(--glass-brd);box-shadow:var(--shadow),var(--glass-hi)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .glass{background:rgba(47,47,47,.2)}
+  .glass{background:rgba(28,20,14,.9)}
 }
 
 /* ambient background */
@@ -491,6 +491,7 @@ function loadChapter(ci,startPos=-1,autoplay=false){
   R.units=units;
   $("#chapNow").textContent=ch.title||("Chương "+(ci+1));
   $$("#chapList .chap-item").forEach((el,i)=>el.classList.toggle("current",i===ci));
+  updateMediaMeta();
   updateProgress();
   if(startPos>=0&&startPos<units.length){setActive(startPos);R.markU=startPos}
   if(RM.open){paginate();renderPages(0)}   // đang tự đọc -> phân trang chương mới
@@ -535,12 +536,40 @@ async function play(i){
 }
 player.onended=()=>{if(R.playing)play(R.pos+1);else setPlaying(false)};
 function setPlaying(on){R.playing=on;
-  $("#playIcon").innerHTML=on?'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>'}
+  $("#playIcon").innerHTML=on?'<path d="M6 5h4v14H6zm8 0h4v14h-4z"/>':'<path d="M8 5v14l11-7z"/>';
+  if('mediaSession' in navigator)navigator.mediaSession.playbackState=on?'playing':'paused'}
 function stop(){R.playing=false;clearTimeout(demoTimer);try{player.pause()}catch{}setPlaying(false)}
-$("#playBtn").onclick=()=>{if(R.playing)stop();
-  else if(R.pos<0)play(0);else if(!DEMO&&player.src){player.play();setPlaying(true)}else play(R.pos)};
+function resumePlay(){
+  if(R.pos<0)play(0);
+  else if(!DEMO&&player.src){player.play();setPlaying(true)}
+  else play(R.pos);
+}
+$("#playBtn").onclick=()=>{if(R.playing)stop();else resumePlay()};
 $("#prevBtn").onclick=()=>play(Math.max(0,R.pos-1));
 $("#nextBtn").onclick=()=>play(Math.min(R.units.length-1,R.pos+1));
+
+/* ---- Media Session: điều khiển bằng nút tai nghe / màn hình khoá / Bluetooth ---- */
+function updateMediaMeta(){
+  if(!('mediaSession' in navigator)||!R.book)return;
+  const art=[];
+  if(R.book.has_cover&&!DEMO)
+    art.push({src:location.origin+`/api/books/${R.book.id}/cover`,sizes:"512x512",type:"image/jpeg"});
+  try{navigator.mediaSession.metadata=new MediaMetadata({
+    title:(R.book.chapters[R.ch]&&R.book.chapters[R.ch].title)||R.book.title,
+    artist:R.book.title, album:"Thư phòng", artwork:art});
+  }catch{}
+}
+(function initMediaSession(){
+  if(!('mediaSession' in navigator))return;
+  const ms=navigator.mediaSession, set=(a,fn)=>{try{ms.setActionHandler(a,fn)}catch{}};
+  set("play",  ()=>resumePlay());
+  set("pause", ()=>stop());
+  set("stop",  ()=>stop());
+  set("previoustrack",()=>$("#prevBtn").click());   // nút "previous" tai nghe -> câu trước
+  set("nexttrack",    ()=>$("#nextBtn").click());   // nút "next" -> câu sau
+  set("seekbackward", ()=>$("#prevBtn").click());
+  set("seekforward",  ()=>$("#nextBtn").click());
+})();
 addEventListener("keydown",e=>{if(!$("#reader").classList.contains("active"))return;
   if(RM.open)return;                       // đang tự đọc: nhường phím cho lật trang
   if(e.target.matches("input,select"))return;
@@ -758,7 +787,7 @@ addEventListener("resize",()=>{if(RM.open){paginate();renderPages(RM.spread)}});
     r:rnd(1.1,2.6),glow:rnd(7,17),phase:rnd(0,Math.PI*2),
     tw:rnd(.5,1.5),hue:rnd(34,44)}}          // vàng ấm như ngọn nến
   function build(){
-    let n=Math.max(28,Math.min(95,Math.round(innerWidth*innerHeight/32000))); // mật độ nhiều
+    let n=Math.max(28,Math.min(95,Math.round(innerWidth*innerHeight/26000))); // mật độ nhiều
     if(reduce)n=Math.min(n,20);
     flies=Array.from({length:n},newFly);
   }
