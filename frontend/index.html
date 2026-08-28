@@ -787,7 +787,7 @@ addEventListener("resize",()=>{if(RM.open){paginate();renderPages(RM.spread)}});
     r:rnd(1.1,2.6),glow:rnd(7,17),phase:rnd(0,Math.PI*2),
     tw:rnd(.5,1.5),hue:rnd(34,44)}}          // vàng ấm như ngọn nến
   function build(){
-    let n=Math.max(28,Math.min(95,Math.round(innerWidth*innerHeight/26000))); // mật độ nhiều
+    let n=Math.max(28,Math.min(95,Math.round(innerWidth*innerHeight/35000))); // mật độ nhiều
     if(reduce)n=Math.min(n,20);
     flies=Array.from({length:n},newFly);
   }
