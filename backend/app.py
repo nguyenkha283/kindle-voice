@@ -5,6 +5,7 @@ Piper. Không gửi dữ liệu ra ngoài.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 from pathlib import Path
 from typing import Optional
@@ -86,6 +87,25 @@ def _synth_text(text: str) -> bytes:
         reg = _tagger.tag(text) if _tagger else None
         return _bank.synthesize(text, register=reg)
     return tts.synthesize(text)
+
+
+# ==== Cache giọng OmniVoice (render sẵn ngoại tuyến trên máy có GPU) ====
+# Máy nhà chạy omnivoice_render.py -> ghi <sha1(text)>.wav vào thư mục này, rồi
+# đồng bộ sang Oracle. /api/tts tra cache này TRƯỚC; trúng thì trả file giọng clone
+# xịn, trượt thì rơi về VieNeu (real-time) như cũ. Không có thư mục -> chạy y như cũ.
+OMNI_CACHE_DIR = Path(os.environ.get("OMNI_CACHE_DIR", ROOT / "cache" / "omnivoice"))
+
+
+def _omni_cached(text: str) -> Path | None:
+    """Trả path WAV OmniVoice đã render sẵn cho câu này (nếu có), theo sha1(text)."""
+    key = hashlib.sha1((text or "").strip().encode("utf-8")).hexdigest()
+    p = OMNI_CACHE_DIR / f"{key}.wav"
+    try:
+        if p.exists() and p.stat().st_size > 44:   # > header WAV
+            return p
+    except OSError:
+        pass
+    return None
 
 
 # Cache sách đã parse: id -> (mtime, Book)
@@ -284,6 +304,13 @@ class TTSRequest(BaseModel):
 
 @app.post("/api/tts")
 def synth(req: TTSRequest):
+    # 1) Ưu tiên giọng OmniVoice đã render sẵn (nếu có file cache cho câu này).
+    #    Trúng cache thì phục vụ ngay, không cần engine real-time sẵn sàng.
+    cached = _omni_cached(req.text)
+    if cached is not None:
+        return FileResponse(str(cached), media_type="audio/wav")
+
+    # 2) Trượt cache -> engine real-time (VieNeu/Piper) như cũ.
     if not tts.ready:
         return JSONResponse(
             status_code=503,
