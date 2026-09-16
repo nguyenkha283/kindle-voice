@@ -23,6 +23,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+from text_norm import normalize_for_tts, is_speakable
+
 
 def _norm_key(s: str) -> str:
     """Chuẩn hoá tên giọng để so khớp: NFC + bỏ khoảng trắng + thường hoá."""
@@ -34,13 +36,21 @@ _TRAIL_BREAK = re.compile(r"[\s,;:—–]+$")
 
 
 def _is_trivial(text: str) -> bool:
-    """Đoạn không có chữ cái (chỉ số/ký hiệu) -> không nên đưa vào TTS."""
-    return not _HAS_LETTER.search(text or "")
+    """Đoạn không có chữ cái (chỉ số/ký hiệu) -> không nên đưa vào TTS.
+
+    Chuẩn hoá trước khi kiểm tra để: số La Mã đầu mục ("I", "II") vẫn được đọc
+    (thành chữ có chữ cái), còn đoạn chỉ gồm ký hiệu lạ ("★★★", "* * *") thì bị
+    coi là tầm thường -> trả khoảng lặng, tránh model "babble".
+    """
+    return not _HAS_LETTER.search(normalize_for_tts(text or ""))
 
 
 def _prep_text(text: str) -> str:
-    """Đảm bảo đoạn kết thúc bằng dấu câu — giúp model không sinh audio rỗng."""
-    t = (text or "").strip()
+    """Chuẩn hoá + đảm bảo đoạn kết thúc bằng dấu câu (giúp model không sinh rỗng).
+
+    normalize_for_tts: số La Mã đầu mục -> chữ tiếng Việt, loại ký tự lạ.
+    """
+    t = normalize_for_tts(text or "")
     if not t:
         return t
     t = _TRAIL_BREAK.sub("", t)          # bỏ dấu phẩy/hai chấm... ở cuối
@@ -383,7 +393,12 @@ class VieNeuEngine:
         return last
 
     def _synth(self, voice, text: str, kw: dict) -> bytes:
-        audio = self.tts.infer(_prep_text(text), voice=voice, **kw)
+        prepped = _prep_text(text)
+        # Sau chuẩn hoá không còn gì để đọc (chỉ ký hiệu) -> báo "rỗng" để lớp
+        # trên rơi về khoảng lặng thay vì để model tự bịa ra âm thanh.
+        if not is_speakable(prepped):
+            return b""
+        audio = self.tts.infer(prepped, voice=voice, **kw)
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "o.wav"
             self.tts.save(audio, str(out))

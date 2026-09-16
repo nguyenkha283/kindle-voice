@@ -23,6 +23,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
+from text_norm import normalize_for_tts, is_speakable
+
 # ---------------------------------------------------------------------------
 # Ngắt nghỉ theo dấu câu: độ dài khoảng lặng (giây) chèn sau mỗi loại dấu.
 # Chỉnh các số này để tăng/giảm độ "thở" khi đọc.
@@ -193,7 +195,13 @@ class TTSEngine:
                 self._cache.move_to_end(key)
                 return cached
 
-        wav = self._render_with_pauses(key)
+        # Chuẩn hoá trước khi đọc: số La Mã đầu mục -> chữ, loại ký tự lạ.
+        # (Cache theo văn bản gốc; chuẩn hoá là tất định nên không lệch.)
+        spoken = normalize_for_tts(key)
+        if not is_speakable(spoken):
+            wav = _build_wav(_silence(0.12, 22050, 2, 1), 22050, 2, 1)
+        else:
+            wav = self._render_with_pauses(spoken)
         if len(wav) <= 44:
             raise RuntimeError("Piper khong tao duoc audio (kiem tra mo hinh/giong).")
 
