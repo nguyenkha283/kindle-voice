@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from epub_parser import parse_epub, get_cover_bytes, book_id_for, Book
 from pdf_parser import parse_pdf
+from mobi_parser import parse_mobi
 from tts_engine import TTSEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -112,7 +113,7 @@ def _omni_cached(text: str) -> Path | None:
 _book_cache: dict[str, tuple[float, Book]] = {}
 
 
-SUPPORTED_EXT = (".epub", ".pdf")
+SUPPORTED_EXT = (".epub", ".pdf", ".mobi")
 
 
 def _iter_books() -> list[Path]:
@@ -129,8 +130,11 @@ def _path_for_id(book_id: str) -> Path | None:
 
 
 def _parse_any(path: Path) -> Book:
-    if path.suffix.lower() == ".pdf":
+    ext = path.suffix.lower()
+    if ext == ".pdf":
         return parse_pdf(path)
+    if ext == ".mobi":
+        return parse_mobi(path)
     return parse_epub(path)
 
 
@@ -234,7 +238,7 @@ def get_book(book_id: str):
     try:
         return _load_book(path).full_dict()
     except Exception as e:  # noqa: BLE001
-        raise HTTPException(500, f"Lỗi đọc EPUB: {e}")
+        raise HTTPException(500, f"Lỗi đọc sách: {e}")
 
 
 @app.get("/api/books/{book_id}/cover")
@@ -284,7 +288,7 @@ def list_music():
 async def upload_book(file: UploadFile = File(...)):
     name = os.path.basename(file.filename or "")
     if not name.lower().endswith(SUPPORTED_EXT):
-        raise HTTPException(400, "Chỉ nhận file .epub hoặc .pdf")
+        raise HTTPException(400, "Chỉ nhận file .epub, .pdf hoặc .mobi")
     dest = BOOKS_DIR / name
     dest.write_bytes(await file.read())
     try:
