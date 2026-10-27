@@ -4,10 +4,12 @@
 nguyên văn ("I", "II", "Chương III"...) trong khi phần đọc được chuẩn hoá cho
 đúng và tránh model sinh âm rác.
 
-Xử lý hai vấn đề chính:
+Xử lý ba vấn đề chính:
   1) Đầu mục đánh số La Mã (I, II, "Chương IV"...) đọc thành số đếm tiếng Việt
      ("một", "hai", "Chương bốn").
-  2) Ký tự lạ / không đọc được (ký hiệu, mũi tên, emoji, dấu chú thích sót lại)
+  2) Tiêu đề / câu VIẾT HOA TOÀN BỘ ("TÔI ĐÃ SỐNG MỘT CUỘC ĐỜI...") chuyển về chữ
+     thường: TTS đọc chữ hoa tiếng Việt như từ viết tắt / tiếng nước ngoài.
+  3) Ký tự lạ / không đọc được (ký hiệu, mũi tên, emoji, dấu chú thích sót lại)
      bị loại bỏ để neural TTS không "babble" ra đoạn vô nghĩa không có trong sách.
 """
 from __future__ import annotations
@@ -118,7 +120,64 @@ def _convert_roman_headings(text: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# 2) Lọc ký tự lạ (chống "babble" của neural TTS)                              #
+# 2) Chữ VIẾT HOA -> chữ thường                                                #
+# --------------------------------------------------------------------------- #
+
+def _is_caps_word(word: str) -> bool:
+    letters = [c for c in word if c.isalpha()]
+    return bool(letters) and all(c.isupper() for c in letters)
+
+
+def _cap_first(s: str) -> str:
+    for i, ch in enumerate(s):
+        if ch.isalpha():
+            return s[:i] + ch.upper() + s[i + 1:]
+    return s
+
+
+def _heading_roman(words, k) -> bool:
+    """Từ thứ k có phải số La Mã đầu mục ("PHẦN II", "IV. ...") không. Chỉ nhận ở
+    vị trí chắc chắn, vì nhiều âm tiết tiếng Việt viết hoa trùng số La Mã (DI, MI, XI, LI)."""
+    core = words[k].strip("()[].:-—–,")
+    if not re.fullmatch(r"[IVXLCDM]+", core) or roman_to_int(core) is None:
+        return False
+    if k > 0 and words[k - 1].lower().strip("()[].:-—–,") in _INDEX_WORDS:
+        return True
+    return k == 0 and (len(words) == 1 or core != words[k].strip("(["))
+
+
+def fix_allcaps(text: str, min_run: int = 3, ratio: float = 0.6) -> str:
+    """Hạ chữ VIẾT HOA về chữ thường để TTS đọc đúng tiếng Việt.
+
+    - Cả câu/tiêu đề phần lớn viết hoa (>= `ratio` số từ, tối thiểu 2 từ):
+      chuyển về dạng câu ("TÔI ĐÃ SỐNG." -> "Tôi đã sống.").
+    - Trong câu thường: chỉ hạ chuỗi >= `min_run` từ viết hoa liền nhau
+      (chữ nhấn mạnh). Từ viết tắt đứng riêng (NXB, TP.HCM, UNESCO) giữ nguyên.
+    """
+    words = text.split(" ")
+    caps = [_is_caps_word(w) for w in words]
+    roman = [_heading_roman(words, k) for k in range(len(words))]
+    n_words = sum(any(c.isalpha() for c in w) for w in words)
+    if sum(caps) >= 2 and sum(caps) >= ratio * n_words:
+        return _cap_first(" ".join(w.lower() if c and not r else w
+                                   for w, c, r in zip(words, caps, roman)))
+    out, i = list(words), 0
+    while i < len(words):
+        j = i
+        while j < len(words) and caps[j]:
+            j += 1
+        if j - i >= min_run:
+            for k in range(i, j):
+                if not roman[k]:
+                    out[k] = words[k].lower()
+            if i == 0 or re.search(r"[.!?…:\"“]$", words[i - 1]):
+                out[i] = _cap_first(out[i])
+        i = max(j, i + 1)
+    return " ".join(out)
+
+
+# --------------------------------------------------------------------------- #
+# 3) Lọc ký tự lạ (chống "babble" của neural TTS)                              #
 # --------------------------------------------------------------------------- #
 
 # Dấu câu / ký hiệu được PHÉP giữ lại (đọc được hoặc ảnh hưởng ngắt nghỉ).
@@ -153,14 +212,16 @@ def is_speakable(text: str) -> bool:
 def normalize_for_tts(text: str) -> str:
     """Chuẩn hoá một đơn vị văn bản trước khi tổng hợp giọng.
 
-    Trả về chuỗi đã: chuẩn hoá Unicode (NFC), chuyển số La Mã ở đầu mục thành
-    chữ tiếng Việt, loại ký tự lạ và gộp khoảng trắng. Có thể trả chuỗi rỗng
+    Trả về chuỗi đã: chuẩn hoá Unicode (NFC), hạ chữ VIẾT HOA về chữ thường,
+    chuyển số La Mã ở đầu mục thành chữ tiếng Việt, loại ký tự lạ và gộp khoảng
+    trắng. Có thể trả chuỗi rỗng
     (khi đầu vào chỉ gồm ký hiệu) — gọi kèm `is_speakable` để bỏ qua khi rỗng.
     """
     if not text:
         return ""
     text = unicodedata.normalize("NFC", text)
-    text = _convert_roman_headings(text)
     text = _strip_exotic(text)
     text = _WS_RE.sub(" ", text).strip()
+    text = fix_allcaps(text)
+    text = _convert_roman_headings(text)
     return text

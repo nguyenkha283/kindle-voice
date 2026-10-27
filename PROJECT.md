@@ -32,10 +32,11 @@ kindle-voice/
 │  ├─ pdf_parser.py     # PDF  -> cùng cấu trúc Book (chia chương theo outline)
 │  ├─ tts_engine.py     # Engine Piper (python hoặc binary) + cache + ngắt nghỉ
 │  ├─ vieneu_engine.py  # Engine VieNeu-TTS (preset / nhân bản giọng / blend)
-│  ├─ text_norm.py      # Chuẩn hoá văn bản trước TTS (số La Mã, lọc ký tự lạ)
+│  ├─ text_norm.py      # Chuẩn hoá văn bản trước TTS (VIẾT HOA, số La Mã, lọc ký tự lạ)
 │  ├─ registers.py      # Ngân hàng "sắc thái giọng" (chỉ VieNeu + custom voice)
 │  ├─ tagging.py        # Gán sắc thái cho đoạn (heuristic / LLM tùy chọn)
 │  └─ prerender.py      # Pre-render audio cả chương ra đĩa (luồng nền)
+├─ colab/               # Notebook Colab: PDF -> audiobook mp3 bằng giọng clone (OmniVoice)
 ├─ frontend/            # app.js / index.html / style.css + music/
 ├─ books/               # Sách .epub / .pdf của người dùng
 ├─ voices/              # Mô hình giọng Piper (.onnx + .onnx.json)
@@ -114,4 +115,5 @@ frontend dựng "đơn vị đọc" (units) → mỗi unit gọi `POST /api/tts`
 
 | Ngày | Thay đổi | PR |
 |---|---|---|
+| 2026-10-27 | Tiêu đề/câu VIẾT HOA (thường là dòng in đậm) chuyển về chữ thường trước TTS để đọc đúng tiếng Việt; sửa "DI CHÚC" bị đọc thành số La Mã; thêm notebook Colab OmniVoice | — |
 | 2026-09-16 | Chuẩn hoá văn bản trước TTS: đọc đúng đầu mục số La Mã (I, II → một, hai) & chặn "babble" đoạn không có trong sách | [#1](https://github.com/nguyenkha283/kindle-voice/pull/1) |
