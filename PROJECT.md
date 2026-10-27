@@ -115,6 +115,7 @@ frontend dựng "đơn vị đọc" (units) → mỗi unit gọi `POST /api/tts`
 
 | Ngày | Thay đổi | PR |
 |---|---|---|
+| 2026-10-27 | Notebook Colab: LLM mở chấm điểm sắc thái theo đoạn (xác suất đáp án + NGUONG) thay vì tự viết nhãn từng câu; lời thoại do luật quyết định | — |
 | 2026-10-27 | Notebook Colab: gán sắc thái bằng LLM mở (Qwen3-4B-Instruct) chạy ngay trên GPU Colab, miễn phí API; Claude thành tuỳ chọn | — |
 | 2026-10-27 | Notebook Colab: giảm chi phí gán sắc thái (Batch API -50%, output chỉ liệt kê câu khác kể chuyện, lô 150 câu, in chi phí thật) | — |
 | 2026-10-27 | Notebook Colab: gán sắc thái giọng đọc theo ngữ cảnh đoạn văn (Claude hoặc heuristic), mỗi sắc thái = clip mẫu riêng + tốc độ + khoảng nghỉ | — |
