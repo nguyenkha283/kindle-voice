@@ -36,7 +36,7 @@ kindle-voice/
 │  ├─ registers.py      # Ngân hàng "sắc thái giọng" (chỉ VieNeu + custom voice)
 │  ├─ tagging.py        # Gán sắc thái cho đoạn (heuristic / LLM tùy chọn)
 │  └─ prerender.py      # Pre-render audio cả chương ra đĩa (luồng nền)
-├─ colab/               # Notebook Colab: PDF -> audiobook mp3 bằng giọng clone (OmniVoice)
+├─ colab/               # Notebook Colab PDF -> audiobook mp3 (OmniVoice) + pdf_units.py, sac_thai.py
 ├─ frontend/            # app.js / index.html / style.css + music/
 ├─ books/               # Sách .epub / .pdf của người dùng
 ├─ voices/              # Mô hình giọng Piper (.onnx + .onnx.json)
@@ -115,6 +115,7 @@ frontend dựng "đơn vị đọc" (units) → mỗi unit gọi `POST /api/tts`
 
 | Ngày | Thay đổi | PR |
 |---|---|---|
+| 2026-10-27 | Notebook Colab tải code (`colab/pdf_units.py`, `colab/sac_thai.py`, `backend/text_norm.py`) từ GitHub bằng một ô "cập nhật code", không phải mở notebook mới mỗi lần sửa | — |
 | 2026-10-27 | Notebook Colab: LLM mở chấm điểm sắc thái theo đoạn (xác suất đáp án + NGUONG) thay vì tự viết nhãn từng câu; lời thoại do luật quyết định | — |
 | 2026-10-27 | Notebook Colab: gán sắc thái bằng LLM mở (Qwen3-4B-Instruct) chạy ngay trên GPU Colab, miễn phí API; Claude thành tuỳ chọn | — |
 | 2026-10-27 | Notebook Colab: giảm chi phí gán sắc thái (Batch API -50%, output chỉ liệt kê câu khác kể chuyện, lô 150 câu, in chi phí thật) | — |
